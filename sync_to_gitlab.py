@@ -21,7 +21,7 @@ ASSIGNEE_MAP = {
 }
 
 # ------------------- 🧹 TEMİZLİK (DELETE ALL) -------------------
-
+# Affan1 değişiklik
 def get_all_issues():
     """Projeden tüm issue'ları çeker (sayfa sayfa)."""
     issues = []
