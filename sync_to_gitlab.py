@@ -19,7 +19,7 @@ ASSIGNEE_MAP = {
     "merve.yucetas": 31250282,
     "affan.bugra.ozaytas" : 31073378,
 }
-
+#Merve1 değişiklik
 # ------------------- 🧹 TEMİZLİK (DELETE ALL) -------------------
 
 def get_all_issues():
