@@ -21,6 +21,7 @@ ASSIGNEE_MAP = {
 }
 
 # ------------------- 🧹 TEMİZLİK (DELETE ALL) -------------------
+#python sync_to_gitlab.py --delete-all
 
 
 def get_all_issues():
