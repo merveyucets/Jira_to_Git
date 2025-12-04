@@ -1,11 +1,15 @@
 import csv
 import requests
+import pandas as pd
 import os
 from dateutil import parser
 from dotenv import load_dotenv
+from jira_auto_export import fetch_jira_csv
+from compare_issues import compare_issues
 import sys
 import json
 from urllib.parse import quote
+from requests.auth import HTTPBasicAuth
 
 # .env dosyasını yükle
 load_dotenv()
@@ -15,13 +19,19 @@ GITLAB_TOKEN = os.getenv("GITLAB_TOKEN")
 MASTER_PROJECT_ID = os.getenv("MASTER_PROJECT_ID")
 TEAM_PROJECT_MAP = json.loads(os.getenv("TEAM_PROJECT_MAP", "{}"))
 GROUP_ID = os.getenv("GROUP_ID")  # Yeni: milestone'lar burada açılacak
+JIRA_URL = os.getenv("JIRA_URL")  # Örn: http://10.0.38.254
+JIRA_EMAIL = os.getenv("JIRA_EMAIL")  # Jira kullanıcı adı
+JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")  # Şifre veya API token
+JQL = "project = GYT AND created >= -2d"
+CSV_FILE = "jira_export_all.csv"
+
 
 HEADERS = {
     "PRIVATE-TOKEN": GITLAB_TOKEN,
     "Content-Type": "application/json"
 }
 
-# --- Jira'da Asigne yapılan birini Gitlab'de de atamak için
+# --- Jira'da Assignee yapılan birini Gitlab'de de atamak için
 ASSIGNEE_MAP = {
     "merve.yucetas": 31250282,
     "affan.bugra.ozaytas": 31073378,
@@ -35,7 +45,15 @@ STAJYER_PROJECT_MAP = {
     "burak.kiraz": TEAM_PROJECT_MAP.get("GYT Simülasyon")
 }
 
+# ------------------- CSV DOSYA İSİMLERİ -------------------
 
+CSV_FOLDER = "csv_folder"
+TO_ADD_FILE = os.path.join(CSV_FOLDER, "jira_to_add.csv")
+UPLOADED_FILE = os.path.join(CSV_FOLDER, "jira_uploaded.csv")
+LATEST_FILE = os.path.join(CSV_FOLDER, "jira_latest.csv")
+
+
+  
 # ------------------- ROBUST CSV OKUYUCU -------------------
 def read_jira_csv_robustly(filename):
     issues = []
@@ -53,7 +71,6 @@ def read_jira_csv_robustly(filename):
                         val = row_data[idx].strip()
                         if val:
                             stajyer_list_raw.extend([s.strip() for s in val.split(",") if s.strip()])
-                issue['__ROBUST_STAJYER_LIST__'] = list(set([s for s in stajyer_list_raw if s and '@' not in s]))
                 for h, v in zip(header, row_data):
                     issue[h.strip()] = v.strip()
                 issues.append(issue)
@@ -122,10 +139,28 @@ def find_or_create_group_milestone(title):
     else:
         print(f"⚠️ Group Milestone oluşturulamadı: {r.status_code} {r.text}")
         return None
+# ------------------- Stajyer alanlarını test etmek için -------------------
+# --- JIRA TEST REQUEST (hata yutmalı) ---
+try:
+    test_url = f"{JIRA_URL}/rest/api/2/issue/GYT-126"
+    test_response = requests.get(
+        test_url,
+        headers={"Authorization": f"Bearer {JIRA_API_TOKEN}"}
+    )
+    if test_response.status_code == 200:
+        print("[JIRA TEST REQUEST] Başarılı ✅")
+    else:
+        print(f"[JIRA TEST REQUEST] Uyarı: {test_response.status_code}")
+except Exception as e:
+    print(f"[JIRA TEST REQUEST] Hata yutuldu: {e}")
+
+
 
 # ------------------- ANA İŞLEMLER -------------------
 if __name__ == "__main__":
-    rows = read_jira_csv_robustly("jira_export_all.csv")
+    fetch_jira_csv()
+    compare_issues()
+    rows = read_jira_csv_robustly(TO_ADD_FILE)  
     print(f"\nToplam {len(rows)} Jira kaydı okundu.")
 
     for i, row in enumerate(rows, start=1):
@@ -133,7 +168,8 @@ if __name__ == "__main__":
         jira_key = row.get("Issue key") or ""
         print(f"\n--- {i}/{len(rows)}: İşleniyor {jira_key} - {title} --- \n")
 
-        ilgili_stajyerler = row.get('__ROBUST_STAJYER_LIST__', [])
+        ilgili_stajyerler = row.get("İlgili Stajyerler", "").split(",")
+        ilgili_stajyerler = [s.strip() for s in ilgili_stajyerler if s.strip()]
         print(f"➡️ Tespit Edilen Takımlar: {', '.join(ilgili_stajyerler) or 'Yok'}")
 
         orig_description = (row.get("Description") or "").strip()
@@ -236,5 +272,27 @@ if __name__ == "__main__":
                 print(f"  -> Child Issue Oluşturuldu: {child_data['title']} ve Ana Issue ile linklendi.")
             else:
                 print(f"⚠️ Child issue oluşturulamadı (stajyer {stajyer}): {child_resp.status_code} {child_resp.text}")
+            
+            if master_resp.status_code == 201:
+                master_issue = master_resp.json()
+                master_iid = master_issue["iid"]
+                print(f"✅ Ana Issue Oluşturuldu: {row.get('Summary')}")
+
+                    # --- uploaded CSV'yi güncelle ---
+                if os.path.exists(UPLOADED_FILE) and os.path.getsize(UPLOADED_FILE) > 0:
+                    uploaded_df = pd.read_csv(UPLOADED_FILE, encoding="utf-8-sig")
+                else:
+                    uploaded_df = pd.DataFrame(columns=row.keys())
+
+                # Eğer aynı Issue key zaten varsa tekrar ekleme
+                if not ((uploaded_df['Issue key'] == row['Issue key']).any()):
+                    uploaded_df = pd.concat([uploaded_df, pd.DataFrame([row])], ignore_index=True)
+                    uploaded_df.to_csv(UPLOADED_FILE, index=False, encoding="utf-8-sig")
+                    print(f"'{row['Issue key']}' uploaded CSV'ye eklendi.")
+                else:
+                    print(f"'{row['Issue key']}' zaten uploaded CSV'de mevcut, tekrar eklenmedi.")
+
 
     print("\n✅ Aktarım tamamlandı. Tüm takımlar için issue'lar oluşturuldu ve grup milestone'una eklendi.\n")
+
+    
