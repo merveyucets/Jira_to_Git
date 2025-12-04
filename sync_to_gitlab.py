@@ -22,7 +22,7 @@ GROUP_ID = os.getenv("GROUP_ID")  # Yeni: milestone'lar burada açılacak
 JIRA_URL = os.getenv("JIRA_URL")  # Örn: http://10.0.38.254
 JIRA_EMAIL = os.getenv("JIRA_EMAIL")  # Jira kullanıcı adı
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")  # Şifre veya API token
-JQL = "project = GYT"
+JQL = "project = GYT AND created >= -2d"
 CSV_FILE = "jira_export_all.csv"
 
 
