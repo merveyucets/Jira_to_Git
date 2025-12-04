@@ -1,0 +1,4 @@
+﻿Issue key,Summary,Issue id,Issue Type,Status,Project key,Project name,Priority,Assignee,Reporter,Description,Due Date,Original Estimate,Time Spent,Labels,İlgili Stajyerler
+GYT-133,GitLab Entegrasyon Çoklu Takım,16801,Araştırma,Başlanmamış,GYT,Gömülü Yazılım Teknolojileri,Minör,merve.yucetas,merve.yucetas,,,,,,"affan.bugra.ozaytas,burak.kiraz,merve.yucetas"
+GYT-132,GitLab Entegrasyon,16800,Araştırma,Başlanmamış,GYT,Gömülü Yazılım Teknolojileri,Minör,merve.yucetas,merve.yucetas,,,,,,affan.bugra.ozaytas
+GYT-127,Otomatik  Export Deneme Issue,16700,Sub-task,Başlanmamış,GYT,Gömülü Yazılım Teknolojileri,Minör,affan.bugra.ozaytas,affan.bugra.ozaytas,,2026-10-25,,,KızılElma,"affan.bugra.ozaytas,merve.yucetas"
